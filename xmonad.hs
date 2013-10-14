@@ -1,17 +1,14 @@
 -- @ 2013
 -- Based xmonad config used by Vic Fryzel
---
 -- Authors:
---   Vic Fryzel
---     http://github.com/vicfryzel/xmonad-config
---
---   Manuel Torrinha
---     http://github.com/t0rrant/xmonad-config
---
---
+-- Vic Fryzel
+-- http://github.com/vicfryzel/xmonad-config
+-- Manuel Torrinha
+-- http://github.com/t0rrant/xmonad-config
+
+
 ------------------------------------------------------------------------------
 import XMonad
-import XMonad.Config.Gnome
 
 import XMonad.Actions.WindowGo
 
@@ -19,6 +16,7 @@ import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
 import XMonad.Hooks.SetWMName
+import XMonad.Hooks.ICCCMFocus
 
 import XMonad.Layout.Fullscreen
 import XMonad.Layout.Grid
@@ -28,7 +26,6 @@ import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Spacing  
 import XMonad.Layout.Spiral
 import XMonad.Layout.Tabbed
-import XMonad.Layout.Reflect
 
 import XMonad.Util.EZConfig(additionalKeys)
 import XMonad.Util.Run(spawnPipe)
@@ -44,9 +41,10 @@ import System.Exit
 import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
 
+
 ------------------------------------------------------------------------------
 -- default terminal to launch
-myTerminal = "gnome-terminal"
+myTerminal = "xfce4-terminal"
 
 ------------------------------------------------------------------------------
 -- Define amount and names of workspaces 
@@ -62,10 +60,12 @@ myManageHook = composeAll
     [ className =? "Firefox"      --> doShift "2:web"
     , resource =? "desktop_window" --> doIgnore
     , className =? "VirtualBox"   --> doShift "4:vm"
-    , className =? "Empathy"          --> doShift "3:chat"
+    , className =? "psi"          --> doShift "3:chat"
     , className =? "Skype"        --> doShift "3:chat"
     , className =? "Vlc"          --> doShift "5:media"
     , className =? "Spotify"      --> doShift "5:media"
+    , className =? "Leksah"       --> doShift "4:vm"
+    , className =? "Sublime_text" --> doShift "1:code"
     , className =? "MPlayer"      --> doFloat
     , resource =? "gpicview"      --> doFloat
     , isFullscreen --> (doF W.focusDown <+> doFullFloat)
@@ -79,6 +79,7 @@ myManageHook = composeAll
 -- restarting (with 'mod-q') to reset your layout state to the new
 -- defaults, as xmonad preserves your old layout settings by default.
 --
+-- defaultLayout = avoidStruts( Tall 1 (3/100) (1/2) ||| Mirror (Tall 1 (3/100) (1/2) ||| tabbed shrinkText tabConfig ||| Full ||| spiral (6/7) ) ||| noBorders (fullscreenFull Full)
 
 defaultLayout = avoidStruts (
     Tall 1 (3/100) (1/2) |||
@@ -91,13 +92,7 @@ defaultLayout = avoidStruts (
 
 termLayout = defaultLayout
 
--- Grid ||| Full ||| Tall 1 (3/100) (1/2)
-
-usualL l = smartBorders $ avoidStruts $ l
-
-imLayout = usualL $ withIM (1%6) empathy $ reflectHoriz $ defaultLayout
-    where
-      empathy = (Resource "empathy") 
+imLayout = withIM (1%7) (Resource "main") Grid ||| Full ||| Tall 1 (3/100) (1/2)
 
 webLayout = noBorders (fullscreenFull Full)
 
@@ -157,7 +152,7 @@ myKeys conf@(XConfig {XMonad.modMask = modMask}) = M.fromList $
 
   -- Lock the screen using xscreensaver.
   , ((modMask .|. controlMask, xK_l),
-     spawn "gnome-screensaver-command -l -a")
+     spawn "xscreensaver-command -lock")
 
   -- Launch dmenu via yeganesh.
   -- Use this to launch programs without a key binding.
@@ -166,8 +161,9 @@ myKeys conf@(XConfig {XMonad.modMask = modMask}) = M.fromList $
 
   -- Take full screenshot in multi-head mode.
   -- That is, take a screenshot of everything you see.
-  , ((modMask , xK_Print), spawn "screenshot")
-  , ((modMask , xK_Sys_Req), spawn "screenshot ")
+  , ((modMask , xK_Print), spawn "scrot /home/torrinha/screen-$(date +'%D').png")
+  , ((modMask , xK_Sys_Req), spawn "scrot -s /home/torrinha/screen-$(date +'%D').png")
+
 
   -- Take a screenshot in select mode.
   -- After pressing this key binding, click a window, or draw a rectangle with
@@ -341,7 +337,11 @@ myStartupHook :: X ()
 
 myStartupHook = do
     runOrRaise "firefox" (className =? "Firefox")
+--    runOrRaise "psi" (className =? "psi")
     runOrRaise "spotify" (className =? "Spotify")
+    spawn "xscreensaver -no-splash &"
+ -- animation (fractals) on all screens
+--    spawn "xwinwrap -ov -fs -ni -- /usr/lib/xscreensaver/electricsheep --root 1 -window-id WID --video-driver gl --nrepeats 3 > /dev/null 2>&1 &"
     setWMName "LG3D"
 
 ------------------------------------------------------------------------
@@ -350,15 +350,15 @@ myStartupHook = do
 
 -- this can (and should) be moved to .xsession when you feel confortable with the settings.
 -- while this is here remember to 'killall -9 trayer' before restarting xmonad (M-q)
--- trayerPanel = "trayer --edge top --align right --SetDockType true --SetPartialStrut false --expand true --width 5 --transparent true --tint gray --height 18"
-false :: Bool
-false = False
-
+trayerPanel = "trayer --edge top --align right --SetDockType true --SetPartialStrut false --expand true --width 5 --transparent true --tint gray --height 19"
 
 main = do
   xmproc <- spawnPipe "/usr/bin/xmobar ~/.xmonad/xmobar.hs"
+  trayer <- spawnPipe trayerPanel
   xmonad $ defaults {
-      logHook = dynamicLogWithPP $ xmobarPP {
+      logHook = do
+          takeTopFocus
+          dynamicLogWithPP $ xmobarPP {
             ppOutput = hPutStrLn xmproc
           , ppTitle = xmobarColor xmobarTitleColor "" . shorten 100
           , ppCurrent = xmobarColor xmobarCurrentWorkspaceColor ""
@@ -366,6 +366,8 @@ main = do
       , manageHook = manageDocks <+> myManageHook
       , startupHook = myStartupHook
   }
+  spawn "xwinwrap -ov -fs -ni -- /usr/lib/xscreensaver/electricsheep --root 1 -window-id WID --video-driver gl --nrepeats 3 > /dev/null 2>&1 &"
+
 
 ------------------------------------------------------------------------
 -- Combine it all together
